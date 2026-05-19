@@ -60,6 +60,24 @@ async function seed() {
          ON CONFLICT DO NOTHING`,
         [trainingIds[0]]
       );
+
+      await client.query(
+        `INSERT INTO quiz_questions (training_id, prompt, options, correct_answer_index, order_index)
+         SELECT $1, 'Which React hook is used to manage local component state?', $2::jsonb, 1, 0
+         WHERE NOT EXISTS (SELECT 1 FROM quiz_questions WHERE training_id=$1 AND prompt='Which React hook is used to manage local component state?')
+         UNION ALL
+         SELECT $1, 'What does React Context primarily help with?', $3::jsonb, 2, 1
+         WHERE NOT EXISTS (SELECT 1 FROM quiz_questions WHERE training_id=$1 AND prompt='What does React Context primarily help with?')
+         UNION ALL
+         SELECT $1, 'Which pattern keeps derived UI in sync with state changes?', $4::jsonb, 0, 2
+         WHERE NOT EXISTS (SELECT 1 FROM quiz_questions WHERE training_id=$1 AND prompt='Which pattern keeps derived UI in sync with state changes?')`,
+        [
+          trainingIds[0],
+          JSON.stringify(['useEffect', 'useState', 'useMemo', 'useRef']),
+          JSON.stringify(['Routing between pages', 'Compiling JSX', 'Sharing values across a component tree', 'Bundling assets']),
+          JSON.stringify(['Rendering from state', 'Mutating DOM nodes directly', 'Storing values in globals', 'Refreshing the page']),
+        ]
+      );
     }
 
     // Assignments with varying statuses

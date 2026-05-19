@@ -150,9 +150,9 @@ npm run test:coverage # Jest + coverage
 
 ---
 
-## 🔲 Phase 2 — Not Built (By Design)
+## 🚧 Phase 2 — In Progress
 
-- [ ] Quiz & evaluation engine
+- [x] Quiz & evaluation engine — first slice: training-scoped multiple-choice questions, scored attempts, learner UI, admin/instructor question management
 - [ ] AI training recommendations
 - [ ] In-app notifications + email reminders
 - [ ] Exportable reports (CSV/PDF)
@@ -184,4 +184,4 @@ npm run test:coverage # Jest + coverage
 
 ---
 
-_Last updated: 2026-05-19 — Phase 1 polish complete_
+_Last updated: 2026-05-19 — Phase 2 started with quiz & evaluation engine_
