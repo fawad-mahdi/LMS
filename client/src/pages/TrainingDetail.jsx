@@ -196,6 +196,32 @@ export default function TrainingDetail() {
         <p className="text-muted-2 text-sm leading-relaxed">{training.description || 'No description provided.'}</p>
       </Card>
 
+      {/* ── Prerequisites ── */}
+      {training.prerequisites?.length > 0 && (
+        <div className="animate-fade-up d-150">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[11px] font-mono text-muted uppercase tracking-widest">Prerequisites</p>
+            <span className="text-muted text-xs font-mono">{training.prerequisites.length} required</span>
+          </div>
+          <Card className="p-5 space-y-2">
+            <p className="text-xs text-muted mb-3">Complete these trainings before starting this one:</p>
+            {training.prerequisites.map((p, i) => (
+              <Link key={p.id} to={`/trainings/${p.id}`}
+                className="flex items-center gap-3 rounded-xl border border-border hover:border-accent/30 bg-white/[0.02] hover:bg-accent/4 px-4 py-3 transition-all duration-150 group">
+                <span className="w-6 h-6 rounded-md bg-accent/12 border border-accent/20 text-accent text-[11px] font-mono font-bold flex items-center justify-center flex-shrink-0">
+                  {i + 1}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-text text-sm font-medium group-hover:text-accent transition-colors duration-150 truncate">{p.title}</p>
+                  {p.category && <p className="text-muted text-xs font-mono mt-0.5">{p.category}</p>}
+                </div>
+                <svg className="text-muted group-hover:text-accent transition-colors duration-150 flex-shrink-0" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+              </Link>
+            ))}
+          </Card>
+        </div>
+      )}
+
       {/* ── Materials ── */}
       <div className="animate-fade-up d-180">
         <div className="flex items-center justify-between mb-3">

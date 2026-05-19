@@ -153,15 +153,15 @@ npm run test:coverage # Jest + coverage
 ## 🚧 Phase 2 — In Progress
 
 - [x] Quiz & evaluation engine — first slice: training-scoped multiple-choice questions, scored attempts, learner UI, admin/instructor question management
-- [ ] AI training recommendations
+- [x] Exportable reports (CSV/PDF)
+- [x] Certificates & badges on completion
+- [x] Feedback & star ratings per training
+- [x] Learning paths — prerequisite system on trainings: ordered multi-select in TrainingForm, displayed as linked steps in TrainingDetail
+- [ ] External platform credential management (Udemy vault)
 - [ ] In-app notifications + email reminders
-- [x] Exportable reports (CSV/PDF) — role-scoped completion report downloads from Assignments
-- [ ] Certificates & badges on completion
-- [ ] Feedback & star ratings per training
+- [ ] AI training recommendations
 - [ ] Microsoft SSO (Azure AD)
 - [ ] Bulk CSV assignment upload
-- [ ] Learning paths (ordered training sequences)
-- [ ] External platform credential management (Udemy vault)
 
 ---
 
@@ -184,4 +184,4 @@ npm run test:coverage # Jest + coverage
 
 ---
 
-_Last updated: 2026-05-19 — Phase 2 continued with exportable completion reports_
+_Last updated: 2026-05-19 — Phase 2 started with quiz & evaluation engine_

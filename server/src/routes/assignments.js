@@ -109,7 +109,9 @@ router.patch('/:id/complete', async (req, res, next) => {
 router.patch('/:id/uncomplete', async (req, res, next) => {
   try {
     const { rows } = await pool.query(
-      `UPDATE training_assignments SET status='not_started', progress_pct=0, completed_at=NULL, updated_at=NOW()
+      `UPDATE training_assignments
+       SET status='not_started', progress_pct=0, completed_at=NULL,
+        certificate_awarded_at=NULL, certificate_awarded_by=NULL, updated_at=NOW()
        WHERE id=$1 RETURNING *`,
       [req.params.id]
     );

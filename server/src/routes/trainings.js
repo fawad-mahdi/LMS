@@ -60,14 +60,23 @@ router.get('/', async (req, res, next) => {
 
 router.post('/', authorize('admin', 'instructor'), async (req, res, next) => {
   try {
-    const { title, description, type, category, duration_hrs, is_mandatory, status } = req.body;
+    const { title, description, type, category, duration_hrs, is_mandatory, status, prerequisites } = req.body;
     if (!title || !type) return res.status(400).json({ error: 'title and type required' });
     const { rows } = await pool.query(
       `INSERT INTO trainings (title, description, type, category, duration_hrs, is_mandatory, created_by, status)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
       [title, description, type, category, duration_hrs, is_mandatory ?? false, req.user.userId, status ?? 'draft']
     );
-    res.status(201).json(rows[0]);
+    const training = rows[0];
+    if (Array.isArray(prerequisites) && prerequisites.length) {
+      for (const p of prerequisites) {
+        await pool.query(
+          'INSERT INTO training_prerequisites (training_id, prerequisite_id, order_index) VALUES ($1,$2,$3)',
+          [training.id, p.id, p.order_index]
+        );
+      }
+    }
+    res.status(201).json(training);
   } catch (err) { next(err); }
 });
 
@@ -81,6 +90,14 @@ router.get('/:id', async (req, res, next) => {
 
     const { rows: materials } = await pool.query(
       'SELECT * FROM training_materials WHERE training_id=$1 ORDER BY order_index',
+      [req.params.id]
+    );
+
+    const { rows: prerequisites } = await pool.query(
+      `SELECT tp.order_index, t.id, t.title, t.category
+       FROM training_prerequisites tp
+       JOIN trainings t ON tp.prerequisite_id=t.id
+       WHERE tp.training_id=$1 ORDER BY tp.order_index`,
       [req.params.id]
     );
 
@@ -99,6 +116,7 @@ router.get('/:id', async (req, res, next) => {
     res.json({
       ...training,
       materials,
+      prerequisites,
       quiz: {
         questions: quizQuestions.map(q => sanitizeQuestion(q, canManageTraining(req.user.role))),
         latest_attempt: latestAttempt || null,
@@ -109,7 +127,7 @@ router.get('/:id', async (req, res, next) => {
 
 router.put('/:id', authorize('admin', 'instructor'), async (req, res, next) => {
   try {
-    const { title, description, type, category, duration_hrs, is_mandatory, status } = req.body;
+    const { title, description, type, category, duration_hrs, is_mandatory, status, prerequisites } = req.body;
     const { rows } = await pool.query(
       `UPDATE trainings SET title=COALESCE($1,title), description=COALESCE($2,description),
        type=COALESCE($3,type), category=COALESCE($4,category), duration_hrs=COALESCE($5,duration_hrs),
@@ -118,6 +136,17 @@ router.put('/:id', authorize('admin', 'instructor'), async (req, res, next) => {
       [title, description, type, category, duration_hrs, is_mandatory, status, req.params.id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Training not found' });
+    if (prerequisites !== undefined) {
+      await pool.query('DELETE FROM training_prerequisites WHERE training_id=$1', [req.params.id]);
+      if (Array.isArray(prerequisites) && prerequisites.length) {
+        for (const p of prerequisites) {
+          await pool.query(
+            'INSERT INTO training_prerequisites (training_id, prerequisite_id, order_index) VALUES ($1,$2,$3)',
+            [req.params.id, p.id, p.order_index]
+          );
+        }
+      }
+    }
     res.json(rows[0]);
   } catch (err) { next(err); }
 });
