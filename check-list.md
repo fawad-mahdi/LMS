@@ -155,7 +155,7 @@ npm run test:coverage # Jest + coverage
 - [x] Quiz & evaluation engine — first slice: training-scoped multiple-choice questions, scored attempts, learner UI, admin/instructor question management
 - [ ] AI training recommendations
 - [ ] In-app notifications + email reminders
-- [ ] Exportable reports (CSV/PDF)
+- [x] Exportable reports (CSV/PDF) — role-scoped completion report downloads from Assignments
 - [ ] Certificates & badges on completion
 - [ ] Feedback & star ratings per training
 - [ ] Microsoft SSO (Azure AD)
@@ -184,4 +184,4 @@ npm run test:coverage # Jest + coverage
 
 ---
 
-_Last updated: 2026-05-19 — Phase 2 started with quiz & evaluation engine_
+_Last updated: 2026-05-19 — Phase 2 continued with exportable completion reports_
