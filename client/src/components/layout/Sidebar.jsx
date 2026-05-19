@@ -24,6 +24,12 @@ const Ico = {
       <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
     </svg>
   ),
+  Certificate: () => (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 3h12a2 2 0 012 2v14l-4-2-4 2-4-2-4 2V5a2 2 0 012-2z"/>
+      <path d="M8 8h8M8 12h5"/>
+    </svg>
+  ),
   Users: () => (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
@@ -50,6 +56,7 @@ const navItems = {
     { to: '/dashboard',   label: 'Dashboard',   Icon: Ico.Dashboard },
     { to: '/trainings',   label: 'Trainings',   Icon: Ico.Training },
     { to: '/assignments', label: 'Assignments',  Icon: Ico.Assignment },
+    { to: '/certifications', label: 'Certifications', Icon: Ico.Certificate },
     { to: '/users',       label: 'Users',        Icon: Ico.Users },
   ],
   instructor: [
@@ -60,6 +67,7 @@ const navItems = {
   manager: [
     { to: '/dashboard',   label: 'Dashboard',     Icon: Ico.Dashboard },
     { to: '/assignments', label: 'Team Progress', Icon: Ico.Assignment },
+    { to: '/certifications', label: 'Certifications', Icon: Ico.Certificate },
     { to: '/trainings',   label: 'Library',        Icon: Ico.Training },
   ],
   employee: [

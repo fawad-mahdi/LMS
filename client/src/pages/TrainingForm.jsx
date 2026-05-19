@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getTraining, createTraining, updateTraining, addMaterial, deleteMaterial } from '../api/trainings';
+import { getTraining, getTrainings, createTraining, updateTraining, addMaterial, deleteMaterial } from '../api/trainings';
 import { useToast } from '../context/ToastContext';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
@@ -49,6 +49,15 @@ export default function TrainingForm() {
   const [showMatForm, setShowMatForm]   = useState(false);
   const [matError, setMatError]         = useState('');
 
+  // Prerequisites state
+  const [allTrainings, setAllTrainings] = useState([]);
+  const [hasPrereqs, setHasPrereqs]     = useState(false);
+  const [prereqs, setPrereqs]           = useState([]); // [{id, title, category}]
+
+  useEffect(() => {
+    getTrainings().then(r => setAllTrainings(r.data)).catch(() => {});
+  }, []);
+
   useEffect(() => {
     if (!isEdit) return;
     getTraining(id)
@@ -61,6 +70,10 @@ export default function TrainingForm() {
           status: t.status || 'draft',
         });
         setExistingMats(t.materials || []);
+        if (t.prerequisites?.length) {
+          setHasPrereqs(true);
+          setPrereqs(t.prerequisites.map(p => ({ id: p.id, title: p.title, category: p.category })));
+        }
       })
       .finally(() => setFetching(false));
   }, [id, isEdit]);
@@ -82,16 +95,44 @@ export default function TrainingForm() {
     setExistingMats(prev => prev.filter(m => m.id !== materialId));
   };
 
+  const selectedPrereqIds = useMemo(() => new Set(prereqs.map(p => p.id)), [prereqs]);
+  const availablePrereqs = useMemo(
+    () => allTrainings.filter(t => t.id !== id && !selectedPrereqIds.has(t.id)),
+    [allTrainings, id, selectedPrereqIds]
+  );
+
+  const addPrereq = (e) => {
+    const tid = e.target.value;
+    if (!tid) return;
+    const t = allTrainings.find(t => t.id === tid);
+    if (t) setPrereqs(prev => [...prev, { id: t.id, title: t.title, category: t.category }]);
+    e.target.value = '';
+  };
+
+  const removePrereq = (i) => setPrereqs(prev => prev.filter((_, j) => j !== i));
+
+  const movePrereq = (i, dir) => {
+    setPrereqs(prev => {
+      const copy = [...prev];
+      const j = i + dir;
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+      return copy;
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
+      const prereqPayload = hasPrereqs
+        ? prereqs.map((p, i) => ({ id: p.id, order_index: i }))
+        : [];
       let trainingId = id;
       if (isEdit) {
-        await updateTraining(id, form);
+        await updateTraining(id, { ...form, prerequisites: prereqPayload });
       } else {
-        const { data } = await createTraining(form);
+        const { data } = await createTraining({ ...form, prerequisites: prereqPayload });
         trainingId = data.id;
       }
       // POST each pending material sequentially
@@ -189,6 +230,80 @@ export default function TrainingForm() {
               <p className="text-xs text-muted">Learners will see an urgent badge on this training</p>
             </div>
           </label>
+
+          {/* ── Prerequisites ── */}
+          <div className="pt-1 border-t border-border space-y-3">
+            <label className="flex items-center gap-3 cursor-pointer group pt-1">
+              <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all duration-150 flex-shrink-0
+                ${hasPrereqs ? 'bg-accent border-accent' : 'bg-surface-2 border-border group-hover:border-border-2'}`}>
+                {hasPrereqs && (
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#09090D" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                )}
+              </div>
+              <input type="checkbox" checked={hasPrereqs} onChange={e => { setHasPrereqs(e.target.checked); if (!e.target.checked) setPrereqs([]); }} className="sr-only" />
+              <div>
+                <p className="text-sm text-text font-medium">This training has prerequisites</p>
+                <p className="text-xs text-muted">Learners should complete these trainings first, in the order listed</p>
+              </div>
+            </label>
+
+            {hasPrereqs && (
+              <div className="space-y-2 pl-8">
+                {prereqs.length === 0 && (
+                  <p className="text-xs text-muted/60 font-mono py-1">No prerequisites added yet.</p>
+                )}
+
+                {prereqs.map((p, i) => (
+                  <div key={p.id} className="flex items-center gap-3 bg-surface-2 border border-border rounded-xl px-4 py-3 group/row">
+                    <span className="w-6 h-6 rounded-md bg-accent/12 border border-accent/20 text-accent text-[11px] font-mono font-bold flex items-center justify-center flex-shrink-0">
+                      {i + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-text text-sm font-medium truncate">{p.title}</p>
+                      {p.category && <p className="text-muted text-[11px] font-mono mt-0.5">{p.category}</p>}
+                    </div>
+                    <div className="flex items-center gap-1 opacity-60 group-hover/row:opacity-100 transition-opacity duration-150">
+                      <button type="button" disabled={i === 0} onClick={() => movePrereq(i, -1)}
+                        className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-white/6 text-muted hover:text-text disabled:opacity-25 disabled:cursor-not-allowed transition-all duration-150">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 15l-6-6-6 6"/></svg>
+                      </button>
+                      <button type="button" disabled={i === prereqs.length - 1} onClick={() => movePrereq(i, 1)}
+                        className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-white/6 text-muted hover:text-text disabled:opacity-25 disabled:cursor-not-allowed transition-all duration-150">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M6 9l6 6 6-6"/></svg>
+                      </button>
+                      <button type="button" onClick={() => removePrereq(i)}
+                        className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-danger/10 text-muted hover:text-danger transition-all duration-150 ml-0.5">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                {availablePrereqs.length > 0 && (
+                  <div className="relative mt-1">
+                    <select
+                      defaultValue=""
+                      onChange={addPrereq}
+                      className="w-full appearance-none bg-surface-2 border border-dashed border-border hover:border-accent/40 focus:border-accent/50
+                        text-muted text-sm rounded-xl pl-4 pr-9 py-2.5 outline-none transition-all duration-200 cursor-pointer"
+                    >
+                      <option value="" disabled>+ Add a prerequisite…</option>
+                      {availablePrereqs.map(t => (
+                        <option key={t.id} value={t.id}>
+                          {t.title}{t.category ? ` — ${t.category}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                    <svg className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 9l6 6 6-6"/></svg>
+                  </div>
+                )}
+
+                {availablePrereqs.length === 0 && prereqs.length > 0 && (
+                  <p className="text-xs text-muted/50 font-mono py-0.5">All available trainings have been added.</p>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* ── Materials ── */}
           <div className="pt-1 border-t border-border space-y-3">

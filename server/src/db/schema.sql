@@ -66,10 +66,18 @@ CREATE TABLE IF NOT EXISTS training_assignments (
   status        assignment_status DEFAULT 'not_started',
   progress_pct  INTEGER DEFAULT 0 CHECK (progress_pct BETWEEN 0 AND 100),
   completed_at  TIMESTAMPTZ,
+  certificate_awarded_at TIMESTAMPTZ,
+  certificate_awarded_by UUID REFERENCES users(id),
   created_at    TIMESTAMPTZ DEFAULT NOW(),
   updated_at    TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE (training_id, user_id)
 );
+
+ALTER TABLE training_assignments
+  ADD COLUMN IF NOT EXISTS certificate_awarded_at TIMESTAMPTZ;
+
+ALTER TABLE training_assignments
+  ADD COLUMN IF NOT EXISTS certificate_awarded_by UUID REFERENCES users(id);
 
 CREATE TABLE IF NOT EXISTS training_materials (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -91,6 +99,26 @@ CREATE TABLE IF NOT EXISTS quiz_questions (
   order_index          INTEGER DEFAULT 0,
   created_at           TIMESTAMPTZ DEFAULT NOW(),
   updated_at           TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS training_prerequisites (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  training_id      UUID REFERENCES trainings(id) ON DELETE CASCADE,
+  prerequisite_id  UUID REFERENCES trainings(id) ON DELETE CASCADE,
+  order_index      INTEGER NOT NULL DEFAULT 0,
+  UNIQUE (training_id, prerequisite_id),
+  CHECK (training_id != prerequisite_id)
+);
+
+CREATE TABLE IF NOT EXISTS training_feedback (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  training_id UUID REFERENCES trainings(id) ON DELETE CASCADE,
+  user_id     UUID REFERENCES users(id) ON DELETE CASCADE,
+  rating      SMALLINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  comment     TEXT,
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (training_id, user_id)
 );
 
 CREATE TABLE IF NOT EXISTS quiz_attempts (

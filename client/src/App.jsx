@@ -11,6 +11,7 @@ import TrainingDetail from './pages/TrainingDetail';
 import TrainingForm   from './pages/TrainingForm';
 import Assignments    from './pages/Assignments';
 import AssignmentForm from './pages/AssignmentForm';
+import Certifications from './pages/Certifications';
 import Users          from './pages/Users';
 import UserForm       from './pages/UserForm';
 import UserDetail     from './pages/UserDetail';
@@ -41,6 +42,7 @@ export default function App() {
 
             <Route path="/assignments" element={<Protected><Assignments /></Protected>} />
             <Route path="/assignments/new" element={<Protected roles={['admin']}><AssignmentForm /></Protected>} />
+            <Route path="/certifications" element={<Protected roles={['admin', 'manager']}><Certifications /></Protected>} />
 
             <Route path="/users" element={<Protected roles={['admin']}><Users /></Protected>} />
             <Route path="/users/new" element={<Protected roles={['admin']}><UserForm /></Protected>} />

@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { getAssignments, completeAssignment, uncompleteAssignment, updateProgress, exportCompletionReport } from '../api/assignments';
+import { getMyFeedback, submitFeedback } from '../api/feedback';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import Card from '../components/ui/Card';
@@ -152,6 +153,7 @@ function AssignmentRow({ a, mode, onComplete, onUncomplete, canAct }) {
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-text text-sm font-medium truncate">{nameLabel || '—'}</span>
           {overdue && <Badge variant="danger" dot>Overdue</Badge>}
+          {a.certificate_awarded_at && <Badge variant="accent" dot>Certified</Badge>}
         </div>
         {subLabel && <span className="text-muted text-xs">{subLabel}</span>}
       </div>
@@ -268,6 +270,101 @@ function GroupAccordion({ group, mode, onComplete, onUncomplete, canAct, expandA
 }
 
 /* ─────────────────────────────────────────────────
+   Star rating widget (employee, completed only)
+───────────────────────────────────────────────── */
+function StarWidget({ trainingId, existing, onSaved }) {
+  const toast = useToast();
+  const [hovered, setHovered] = useState(0);
+  const [selected, setSelected] = useState(existing?.rating || 0);
+  const [comment, setComment] = useState(existing?.comment || '');
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const saved = existing?.rating > 0;
+
+  const handleStar = (n) => {
+    setSelected(n);
+    setOpen(true);
+  };
+
+  const handleSubmit = async () => {
+    if (!selected) return;
+    setSaving(true);
+    try {
+      await submitFeedback(trainingId, selected, comment);
+      toast.success(saved ? 'Feedback updated' : 'Feedback submitted');
+      setOpen(false);
+      onSaved();
+    } catch {
+      toast.error('Could not save feedback');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const display = hovered || selected;
+
+  return (
+    <div className="mt-3 pt-3 border-t border-border/40">
+      <div className="flex items-center gap-3">
+        <span className="text-[11px] font-mono text-muted/60 flex-shrink-0">
+          {saved ? 'Your rating' : 'Rate this training'}
+        </span>
+        <div className="flex items-center gap-0.5" onMouseLeave={() => setHovered(0)}>
+          {[1, 2, 3, 4, 5].map(n => (
+            <button
+              key={n}
+              onClick={() => handleStar(n)}
+              onMouseEnter={() => setHovered(n)}
+              className="p-0.5 transition-transform duration-100 hover:scale-110"
+              title={`${n} star${n > 1 ? 's' : ''}`}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill={n <= display ? '#FFD700' : 'none'}
+                stroke={n <= display ? '#FFD700' : '#3a3d4a'}
+                strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+            </button>
+          ))}
+        </div>
+        {saved && !open && (
+          <button onClick={() => setOpen(o => !o)}
+            className="text-[10px] font-mono text-muted/50 hover:text-muted transition-colors duration-150 underline underline-offset-2">
+            edit
+          </button>
+        )}
+      </div>
+
+      {open && (
+        <div className="mt-2.5 space-y-2 animate-fade-up">
+          <textarea
+            value={comment}
+            onChange={e => setComment(e.target.value)}
+            placeholder="Add a comment (optional)…"
+            rows={2}
+            className="w-full bg-bg border border-border hover:border-border-2 focus:border-accent/50 focus:ring-2 focus:ring-accent/10
+              rounded-xl px-3 py-2 text-sm text-text placeholder:text-muted/40 outline-none resize-none transition-all duration-200"
+          />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSubmit}
+              disabled={!selected || saving}
+              className="text-xs font-mono px-3 py-1.5 rounded-lg bg-accent/15 text-accent border border-accent/20
+                hover:bg-accent/25 disabled:opacity-40 transition-all duration-150"
+            >
+              {saving ? 'Saving…' : saved ? 'Update' : 'Submit'}
+            </button>
+            <button onClick={() => setOpen(false)}
+              className="text-xs font-mono text-muted/50 hover:text-muted transition-colors duration-150">
+              cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────
    Flat card with interactive progress slider
 ───────────────────────────────────────────────── */
 function pctColor(p) {
@@ -276,7 +373,7 @@ function pctColor(p) {
   return '#F79009';
 }
 
-function FlatCard({ a, onComplete, onUncomplete, onUpdateProgress, canAct, i }) {
+function FlatCard({ a, onComplete, onUncomplete, onUpdateProgress, canAct, i, feedback, onFeedbackSaved, showFeedback }) {
   const overdue = isOverdue(a);
   const [localPct, setLocalPct] = useState(a.progress_pct || 0);
 
@@ -312,20 +409,19 @@ function FlatCard({ a, onComplete, onUncomplete, onUpdateProgress, canAct, i }) 
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="font-display font-bold text-text text-base">{a.training_title}</h3>
                 {overdue && <Badge variant="danger" dot>Overdue</Badge>}
+                {a.certificate_awarded_at && <Badge variant="accent" dot>Certified</Badge>}
               </div>
               {a.user_name && <p className="text-muted text-xs mt-0.5">{a.user_name} · {a.department}</p>}
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               <Badge variant={statusVariant[a.status]} dot>{statusLabel[a.status]}</Badge>
               {canAct && (
-                a.status === 'completed' ? (
-                  <button onClick={() => onUncomplete(a.id)}
-                    className="text-[11px] font-mono text-muted/60 hover:text-warning transition-colors duration-150 underline underline-offset-2">
-                    Undo
-                  </button>
-                ) : (
-                  <Button variant="ghost" size="sm" onClick={() => onComplete(a.id)}>Mark done</Button>
-                )
+                a.status === 'completed'
+                  ? <button onClick={() => onUncomplete(a.id)}
+                      className="text-[11px] font-mono text-muted/60 hover:text-warning transition-colors duration-150 underline underline-offset-2">
+                      Undo
+                    </button>
+                  : <Button variant="ghost" size="sm" onClick={() => onComplete(a.id)}>Mark done</Button>
               )}
             </div>
           </div>
@@ -366,6 +462,14 @@ function FlatCard({ a, onComplete, onUncomplete, onUpdateProgress, canAct, i }) 
               </div>
             )}
           </div>
+
+          {showFeedback && a.status === 'completed' && (
+            <StarWidget
+              trainingId={a.training_id}
+              existing={feedback}
+              onSaved={onFeedbackSaved}
+            />
+          )}
         </div>
       </div>
     </Card>
@@ -423,6 +527,7 @@ export default function Assignments() {
   const [searchParams] = useSearchParams();
 
   const [all, setAll]         = useState([]);
+  const [feedbackMap, setFeedbackMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [flatTab, setFlatTab] = useState(() => paramToTab(searchParams.get('status')));
 
@@ -455,12 +560,21 @@ export default function Assignments() {
   // Managers viewing others' assignments shouldn't be able to mark complete/undo
   const canAct = user?.role !== 'manager';
 
+  const loadFeedback = useCallback(() => {
+    if (user?.role !== 'employee') return;
+    getMyFeedback().then(r => {
+      const map = {};
+      r.data.forEach(f => { map[f.training_id] = f; });
+      setFeedbackMap(map);
+    }).catch(() => {});
+  }, [user?.role]);
+
   const load = useCallback(() => {
     setLoading(true);
     getAssignments().then(r => setAll(r.data)).finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); loadFeedback(); }, [load, loadFeedback]);
 
   // Sync status dropdown → flat tab when in flat view
   useEffect(() => {
@@ -656,7 +770,11 @@ export default function Assignments() {
                 onComplete={handleComplete}
                 onUncomplete={handleUncomplete}
                 onUpdateProgress={handleUpdateProgress}
-                canAct={canAct} />
+                canAct={canAct}
+                showFeedback={isEmployee}
+                feedback={feedbackMap[a.training_id]}
+                onFeedbackSaved={loadFeedback}
+              />
             ))}
           </div>
         )
