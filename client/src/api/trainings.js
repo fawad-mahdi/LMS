@@ -7,3 +7,6 @@ export const updateTraining = (id, data) => api.put(`/api/trainings/${id}`, data
 export const deleteTraining = (id) => api.delete(`/api/trainings/${id}`);
 export const addMaterial = (id, data) => api.post(`/api/trainings/${id}/materials`, data);
 export const deleteMaterial = (id, materialId) => api.delete(`/api/trainings/${id}/materials/${materialId}`);
+export const addQuizQuestion = (id, data) => api.post(`/api/trainings/${id}/quiz/questions`, data);
+export const deleteQuizQuestion = (id, questionId) => api.delete(`/api/trainings/${id}/quiz/questions/${questionId}`);
+export const submitQuizAttempt = (id, answers) => api.post(`/api/trainings/${id}/quiz/attempts`, { answers });

@@ -1,10 +1,34 @@
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
-CREATE TYPE user_role AS ENUM ('admin', 'instructor', 'employee', 'manager');
-CREATE TYPE training_type AS ENUM ('self_paced', 'instructor_led');
-CREATE TYPE training_status AS ENUM ('draft', 'published', 'archived');
-CREATE TYPE material_type AS ENUM ('video', 'document', 'link', 'presentation');
-CREATE TYPE assignment_status AS ENUM ('not_started', 'in_progress', 'completed');
+DO $$ BEGIN
+  CREATE TYPE user_role AS ENUM ('admin', 'instructor', 'employee', 'manager');
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE training_type AS ENUM ('self_paced', 'instructor_led');
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE training_status AS ENUM ('draft', 'published', 'archived');
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE material_type AS ENUM ('video', 'document', 'link', 'presentation');
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE assignment_status AS ENUM ('not_started', 'in_progress', 'completed');
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
 
 CREATE TABLE IF NOT EXISTS users (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -55,4 +79,28 @@ CREATE TABLE IF NOT EXISTS training_materials (
   url           TEXT,
   order_index   INTEGER DEFAULT 0,
   created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS quiz_questions (
+  id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  training_id          UUID REFERENCES trainings(id) ON DELETE CASCADE,
+  prompt               TEXT NOT NULL,
+  options              JSONB NOT NULL,
+  correct_answer_index INTEGER NOT NULL CHECK (correct_answer_index >= 0),
+  points               INTEGER DEFAULT 1 CHECK (points > 0),
+  order_index          INTEGER DEFAULT 0,
+  created_at           TIMESTAMPTZ DEFAULT NOW(),
+  updated_at           TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS quiz_attempts (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  training_id     UUID REFERENCES trainings(id) ON DELETE CASCADE,
+  user_id         UUID REFERENCES users(id) ON DELETE CASCADE,
+  answers         JSONB NOT NULL,
+  score_pct       INTEGER NOT NULL CHECK (score_pct BETWEEN 0 AND 100),
+  correct_count   INTEGER NOT NULL DEFAULT 0,
+  total_questions INTEGER NOT NULL DEFAULT 0,
+  passed          BOOLEAN DEFAULT false,
+  submitted_at    TIMESTAMPTZ DEFAULT NOW()
 );

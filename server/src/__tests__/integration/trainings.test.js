@@ -178,6 +178,67 @@ describe('Trainings Routes', () => {
     });
   });
 
+  /* ── Quiz ───────────────────────────────── */
+  describe('Training Quiz', () => {
+    let trainingId, questionId;
+
+    beforeAll(async () => {
+      const res = await request(app)
+        .post('/api/trainings')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ title: 'TEST_Quiz Course', type: 'self_paced', status: 'published' });
+      trainingId = res.body.id;
+    });
+
+    it('adds a quiz question for admins and returns the answer key', async () => {
+      const res = await request(app)
+        .post(`/api/trainings/${trainingId}/quiz/questions`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          prompt: 'What is the passing score?',
+          options: ['50%', '70%', '100%'],
+          correct_answer_index: 1,
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body).toMatchObject({ prompt: 'What is the passing score?', correct_answer_index: 1 });
+      questionId = res.body.id;
+    });
+
+    it('hides correct answers from employees on training detail', async () => {
+      const res = await request(app)
+        .get(`/api/trainings/${trainingId}`)
+        .set('Authorization', `Bearer ${employeeToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.quiz.questions[0]).not.toHaveProperty('correct_answer_index');
+    });
+
+    it('returns 403 when employee tries to add quiz questions', async () => {
+      const res = await request(app)
+        .post(`/api/trainings/${trainingId}/quiz/questions`)
+        .set('Authorization', `Bearer ${employeeToken}`)
+        .send({ prompt: 'Nope?', options: ['A', 'B'], correct_answer_index: 0 });
+
+      expect(res.status).toBe(403);
+    });
+
+    it('scores and stores a quiz attempt', async () => {
+      const res = await request(app)
+        .post(`/api/trainings/${trainingId}/quiz/attempts`)
+        .set('Authorization', `Bearer ${employeeToken}`)
+        .send({ answers: [{ question_id: questionId, answer_index: 1 }] });
+
+      expect(res.status).toBe(201);
+      expect(res.body).toMatchObject({
+        score_pct: 100,
+        correct_count: 1,
+        total_questions: 1,
+        passed: true,
+      });
+    });
+  });
+
   /* ── DELETE /api/trainings/:id ───────────── */
   describe('DELETE /api/trainings/:id', () => {
     it('deletes a training (admin) and returns 200', async () => {
