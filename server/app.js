@@ -12,6 +12,7 @@ app.use('/api/users',       require('./src/routes/users'));
 app.use('/api/trainings',   require('./src/routes/trainings'));
 app.use('/api/assignments', require('./src/routes/assignments'));
 app.use('/api/dashboard',   require('./src/routes/dashboard'));
+app.use('/api/reports',     require('./src/routes/reports'));
 
 app.use(errorHandler);
 

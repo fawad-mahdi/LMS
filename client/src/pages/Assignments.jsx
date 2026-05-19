@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { getAssignments, completeAssignment, uncompleteAssignment, updateProgress } from '../api/assignments';
+import { getAssignments, completeAssignment, uncompleteAssignment, updateProgress, exportCompletionReport } from '../api/assignments';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import Card from '../components/ui/Card';
@@ -412,6 +412,7 @@ function ViewToggle({ value, onChange, options }) {
 const IcoList = <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>;
 const IcoBook = <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>;
 const IcoUsers = <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>;
+const IcoDownload = <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>;
 
 /* ─────────────────────────────────────────────────
    Main page
@@ -433,6 +434,7 @@ export default function Assignments() {
   });
   const [sortFlat, setSortFlat]   = useState('date_desc');
   const [sortGroup, setSortGroup] = useState('name_asc');
+  const [exporting, setExporting] = useState('');
 
   // View mode — employees can only see flat list (their own assignments)
   const isEmployee = user?.role === 'employee';
@@ -488,6 +490,30 @@ export default function Assignments() {
     load();
   }, [load, toast]);
 
+  const exportStatus = view === 'flat'
+    ? flatTab.toLowerCase().replaceAll(' ', '_')
+    : status;
+
+  const handleExport = useCallback(async (format) => {
+    try {
+      setExporting(format);
+      const res = await exportCompletionReport(format, exportStatus === 'all' ? 'all' : exportStatus);
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `completion-report.${format}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success(`${format.toUpperCase()} report downloaded`);
+    } catch {
+      toast.error('Could not export report');
+    } finally {
+      setExporting('');
+    }
+  }, [exportStatus, toast]);
+
   /* ── Derived data ── */
 
   // Flat view: filter by tab, then search, then sort
@@ -529,14 +555,24 @@ export default function Assignments() {
             {all.length} total · {all.filter(a => a.status === 'completed').length} completed · {all.filter(isOverdue).length} overdue
           </p>
         </div>
-        {canAssign && (
-          <Link to="/assignments/new">
-            <Button>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Assign Training
-            </Button>
-          </Link>
-        )}
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          <Button variant="secondary" size="sm" onClick={() => handleExport('csv')} disabled={!!exporting || loading}>
+            {IcoDownload}
+            {exporting === 'csv' ? 'Exporting' : 'CSV'}
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => handleExport('pdf')} disabled={!!exporting || loading}>
+            {IcoDownload}
+            {exporting === 'pdf' ? 'Exporting' : 'PDF'}
+          </Button>
+          {canAssign && (
+            <Link to="/assignments/new">
+              <Button>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Assign Training
+              </Button>
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* ── Controls row ── */}

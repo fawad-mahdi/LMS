@@ -6,3 +6,7 @@ export const updateProgress = (id, progress_pct) => api.patch(`/api/assignments/
 export const completeAssignment = (id) => api.patch(`/api/assignments/${id}/complete`);
 export const uncompleteAssignment = (id) => api.patch(`/api/assignments/${id}/uncomplete`);
 export const deleteAssignment = (id) => api.delete(`/api/assignments/${id}`);
+export const exportCompletionReport = (format, status = 'all') => api.get('/api/reports/completion', {
+  params: { format, status },
+  responseType: 'blob',
+});
