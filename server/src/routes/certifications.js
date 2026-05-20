@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../db/pool');
 const authenticate = require('../middleware/authenticate');
 const authorize = require('../middleware/authorize');
+const createNotification = require('../utils/notify');
 
 const router = express.Router();
 router.use(authenticate);
@@ -123,6 +124,13 @@ router.post('/:id/award', async (req, res, next) => {
        RETURNING *`,
       [req.params.id, req.user.userId]
     );
+    if (!assignment.certificate_awarded_at) {
+      createNotification(
+        assignment.user_id, 'certificate_awarded',
+        `Your certificate for "${assignment.training_title}" has been awarded`,
+        req.params.id, 'assignment'
+      ).catch(() => {});
+    }
     res.json(rows[0]);
   } catch (err) { next(err); }
 });

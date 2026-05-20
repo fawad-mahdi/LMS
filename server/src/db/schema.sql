@@ -101,6 +101,17 @@ CREATE TABLE IF NOT EXISTS quiz_questions (
   updated_at           TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS notifications (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID REFERENCES users(id) ON DELETE CASCADE,
+  type        VARCHAR(50) NOT NULL,
+  message     TEXT NOT NULL,
+  entity_id   UUID,
+  entity_type VARCHAR(50),
+  read_at     TIMESTAMPTZ,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS training_prerequisites (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   training_id      UUID REFERENCES trainings(id) ON DELETE CASCADE,

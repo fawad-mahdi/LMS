@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../db/pool');
 const authenticate = require('../middleware/authenticate');
 const authorize = require('../middleware/authorize');
+const createNotification = require('../utils/notify');
 
 const router = express.Router();
 router.use(authenticate);
@@ -128,6 +129,7 @@ router.get('/:id', async (req, res, next) => {
 router.put('/:id', authorize('admin', 'instructor'), async (req, res, next) => {
   try {
     const { title, description, type, category, duration_hrs, is_mandatory, status, prerequisites } = req.body;
+    const { rows: [prev] } = await pool.query('SELECT status FROM trainings WHERE id=$1', [req.params.id]);
     const { rows } = await pool.query(
       `UPDATE trainings SET title=COALESCE($1,title), description=COALESCE($2,description),
        type=COALESCE($3,type), category=COALESCE($4,category), duration_hrs=COALESCE($5,duration_hrs),
@@ -136,6 +138,18 @@ router.put('/:id', authorize('admin', 'instructor'), async (req, res, next) => {
       [title, description, type, category, duration_hrs, is_mandatory, status, req.params.id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Training not found' });
+    if (status === 'published' && prev?.status !== 'published') {
+      pool.query(
+        'SELECT user_id FROM training_assignments WHERE training_id=$1', [req.params.id]
+      ).then(({ rows: assignees }) => {
+        for (const a of assignees) {
+          createNotification(a.user_id, 'training_published',
+            `"${rows[0].title}" has been published and is ready to start`,
+            req.params.id, 'training'
+          ).catch(() => {});
+        }
+      }).catch(() => {});
+    }
     if (prerequisites !== undefined) {
       await pool.query('DELETE FROM training_prerequisites WHERE training_id=$1', [req.params.id]);
       if (Array.isArray(prerequisites) && prerequisites.length) {
@@ -188,14 +202,32 @@ router.post('/:id/quiz/questions', authorize('admin', 'instructor'), async (req,
     const error = validateQuestionPayload({ prompt, options, correct_answer_index });
     if (error) return res.status(400).json({ error });
 
-    const { rows: [training] } = await pool.query('SELECT id FROM trainings WHERE id=$1', [req.params.id]);
+    const { rows: [training] } = await pool.query('SELECT id, title FROM trainings WHERE id=$1', [req.params.id]);
     if (!training) return res.status(404).json({ error: 'Training not found' });
+
+    const { rows: [{ count: existingCount }] } = await pool.query(
+      'SELECT COUNT(*) FROM quiz_questions WHERE training_id=$1', [req.params.id]
+    );
 
     const { rows } = await pool.query(
       `INSERT INTO quiz_questions (training_id, prompt, options, correct_answer_index, points, order_index)
        VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
       [req.params.id, prompt, JSON.stringify(options), correct_answer_index, points ?? 1, order_index ?? 0]
     );
+
+    if (parseInt(existingCount) === 0) {
+      pool.query(
+        'SELECT user_id FROM training_assignments WHERE training_id=$1', [req.params.id]
+      ).then(({ rows: assignees }) => {
+        for (const a of assignees) {
+          createNotification(a.user_id, 'quiz_available',
+            `A quiz is now available for "${training.title}"`,
+            req.params.id, 'training'
+          ).catch(() => {});
+        }
+      }).catch(() => {});
+    }
+
     res.status(201).json(sanitizeQuestion(rows[0], true));
   } catch (err) { next(err); }
 });
@@ -256,6 +288,26 @@ router.post('/:id/quiz/attempts', async (req, res, next) => {
        RETURNING id, training_id, user_id, answers, score_pct, correct_count, total_questions, passed, submitted_at`,
       [req.params.id, req.user.userId, JSON.stringify(gradedAnswers), scorePct, correctCount, questions.length, passed]
     );
+
+    pool.query(
+      `SELECT u.name, u.department, t.title AS training_title
+       FROM users u, trainings t WHERE u.id=$1 AND t.id=$2`,
+      [req.user.userId, req.params.id]
+    ).then(async ({ rows: [info] }) => {
+      if (!info) return;
+      const { rows: recipients } = await pool.query(
+        `SELECT id FROM users WHERE is_active=true AND (
+          (role='manager' AND department=$1) OR role='admin'
+        )`,
+        [info.department]
+      );
+      for (const r of recipients) {
+        createNotification(r.id, 'quiz_completed',
+          `${info.name} scored ${scorePct}% on the quiz for "${info.training_title}"`,
+          rows[0].id, 'quiz_attempt'
+        ).catch(() => {});
+      }
+    }).catch(() => {});
 
     res.status(201).json(rows[0]);
   } catch (err) { next(err); }

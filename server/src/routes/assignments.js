@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../db/pool');
 const authenticate = require('../middleware/authenticate');
 const authorize = require('../middleware/authorize');
+const createNotification = require('../utils/notify');
 
 const router = express.Router();
 router.use(authenticate);
@@ -49,6 +50,7 @@ router.post('/', authorize('admin'), async (req, res, next) => {
     if (!training_id || !Array.isArray(user_ids) || !user_ids.length) {
       return res.status(400).json({ error: 'training_id and user_ids[] required' });
     }
+    const { rows: [training] } = await pool.query('SELECT title FROM trainings WHERE id=$1', [training_id]);
     const results = [];
     for (const uid of user_ids) {
       try {
@@ -57,7 +59,14 @@ router.post('/', authorize('admin'), async (req, res, next) => {
            VALUES ($1,$2,$3,$4) ON CONFLICT (training_id, user_id) DO NOTHING RETURNING *`,
           [training_id, uid, req.user.userId, due_date]
         );
-        if (rows[0]) results.push(rows[0]);
+        if (rows[0]) {
+          results.push(rows[0]);
+          if (training) {
+            createNotification(uid, 'assignment_created',
+              `You've been assigned: ${training.title}`, rows[0].id, 'assignment'
+            ).catch(() => {});
+          }
+        }
       } catch { /* skip duplicate */ }
     }
     res.status(201).json(results);
@@ -102,6 +111,30 @@ router.patch('/:id/complete', async (req, res, next) => {
       [req.params.id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Assignment not found' });
+
+    pool.query(
+      `SELECT u.name AS user_name, u.department, t.title AS training_title
+       FROM training_assignments ta
+       JOIN users u ON ta.user_id=u.id
+       JOIN trainings t ON ta.training_id=t.id
+       WHERE ta.id=$1`,
+      [req.params.id]
+    ).then(async ({ rows: [details] }) => {
+      if (!details) return;
+      const { rows: recipients } = await pool.query(
+        `SELECT id FROM users WHERE is_active=true AND (
+          (role='manager' AND department=$1) OR role='admin'
+        )`,
+        [details.department]
+      );
+      for (const r of recipients) {
+        createNotification(r.id, 'course_completed',
+          `${details.user_name} completed "${details.training_title}"`,
+          rows[0].id, 'assignment'
+        ).catch(() => {});
+      }
+    }).catch(() => {});
+
     res.json(rows[0]);
   } catch (err) { next(err); }
 });
