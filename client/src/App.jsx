@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
+import { NotificationsProvider } from './context/NotificationsContext';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 import AppShell from './components/layout/AppShell';
 
@@ -29,6 +30,7 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <ToastProvider>
+          <NotificationsProvider>
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -49,6 +51,7 @@ export default function App() {
             <Route path="/users/:id" element={<Protected roles={['admin']}><UserDetail /></Protected>} />
             <Route path="/users/:id/edit" element={<Protected roles={['admin']}><UserForm /></Protected>} />
           </Routes>
+          </NotificationsProvider>
         </ToastProvider>
       </AuthProvider>
     </BrowserRouter>

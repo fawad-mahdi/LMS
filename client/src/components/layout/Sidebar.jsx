@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useNotifications } from '../../context/NotificationsContext';
 import { logout as apiLogout } from '../../api/auth';
 
 /* ── SVG icon set ─────────────────────────── */
@@ -96,6 +97,7 @@ function UserAvatar({ name }) {
 export default function Sidebar({ isOpen, onClose }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { unreadCount, setPanelOpen } = useNotifications();
   const items = navItems[user?.role] || [];
 
   const handleLogout = async () => {
@@ -186,6 +188,19 @@ export default function Sidebar({ isOpen, onClose }) {
               {user?.role}
             </span>
           </div>
+          {/* Bell — desktop */}
+          <button onClick={() => { onClose(); setPanelOpen(true); }}
+            className="relative w-8 h-8 flex items-center justify-center rounded-xl text-muted hover:text-text hover:bg-white/5 transition-all duration-150 flex-shrink-0"
+            title="Notifications">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+              <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/>
+            </svg>
+            {unreadCount > 0 && (
+              <span className="absolute top-0.5 right-0.5 w-3.5 h-3.5 bg-accent text-bg text-[8px] font-bold rounded-full flex items-center justify-center">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </button>
         </div>
 
         <button

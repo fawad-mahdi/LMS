@@ -157,10 +157,10 @@ npm run test:coverage # Jest + coverage
 - [x] Certificates & badges on completion
 - [x] Feedback & star ratings per training
 - [x] Learning paths — prerequisite system on trainings: ordered multi-select in TrainingForm, displayed as linked steps in TrainingDetail
-- [ ] External platform credential management (Udemy vault)
-- [ ] In-app notifications + email reminders
+- [x] In-app notifications — bell icon in sidebar + mobile top bar, 60s polling, slide-in panel; triggers on assignment created + certificate awarded; email reminders deferred
 - [ ] AI training recommendations
 - [ ] Microsoft SSO (Azure AD)
+- [ ] External platform credential management (Udemy vault)
 - [ ] Bulk CSV assignment upload
 
 ---

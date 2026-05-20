@@ -14,7 +14,8 @@ app.use('/api/assignments', require('./src/routes/assignments'));
 app.use('/api/dashboard',   require('./src/routes/dashboard'));
 app.use('/api/reports',     require('./src/routes/reports'));
 app.use('/api/certifications', require('./src/routes/certifications'));
-app.use('/api/feedback',      require('./src/routes/feedback'));
+app.use('/api/feedback',       require('./src/routes/feedback'));
+app.use('/api/notifications',  require('./src/routes/notifications'));
 
 app.use(errorHandler);
 
